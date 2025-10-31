@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: servidor-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # Filtros por defecto aplicados a todas las rutas
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin #Para permitir que todas las peticiones pueda llegar sin bloquear por las políticas CORS
+          # CORS global (ojo: si usas credenciales, prefiere allowed-origin-patterns)
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowed-origins: "*"
+                allowed-methods: "*"
+                allowed-headers: "*"
+          # Rutas del gateway
+          routes:
+            - id: servCursos #Id de la ruta 
+              uri: lb://servicio-cursos #Para que sea gestionada por Ribbon a través de Eureka
+              predicates:
+                - Path=/scursos/** #Cuando Gateway detecte que en la peticion URL venga este path, enrutara la peticion hacia el servicio indicado en la propiedad "uri" (lb://servicio-cursos)
+              filters:
+                # Convierte /scursos/foo/bar -> /foo/bar. Lo que indica es que a la url indicada en la propiedad "uri", se le adicionará un "/" mas todo lo que venga despues de "scursos" en la petición URL de entrada. /sproductos/* es sustituido por /
+                - RewritePath=/scursos/?(?<segment>.*), /${segment}
+            - id: servFormacion
+              uri: lb://servicio-formacion
+              predicates:
+                - Path=/sformacion/**
+              filters:
+                # Convierte /sformacion/foo/bar -> /foo/bar
+                - RewritePath=/sformacion/?(?<segment>.*), /${segment}
+
+server:
+  port: 9000
+
+eureka:
+  client:
+    register-with-eureka: false
+    service-url:
+      defaultZone: http://localhost:8761/eureka
